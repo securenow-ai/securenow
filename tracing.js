@@ -1,23 +1,30 @@
 // tracing.js
 'use strict'
 const process = require('process');
+//OpenTelemetry
 const opentelemetry = require('@opentelemetry/sdk-node');
-const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+//instrumentations
+const { ExpressInstrumentation } = require("@opentelemetry/instrumentation-express");
+const { MongoDBInstrumentation } = require("@opentelemetry/instrumentation-mongodb");
+const { HttpInstrumentation } = require("@opentelemetry/instrumentation-http");
+
+const { v4: uuidv4 } = require('uuid');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
-const { v4: uuidv4 } = require('uuid');
+
 const exporterOptions = {
   url: 'http://65.108.80.206:4318/v1/traces'
 }
+
 const traceExporter = new OTLPTraceExporter(exporterOptions);
 const sdk = new opentelemetry.NodeSDK({
   traceExporter,
-  instrumentations: [getNodeAutoInstrumentations()],
+  instrumentations: [new ExpressInstrumentation(), new MongoDBInstrumentation(), new HttpInstrumentation()],
   resource: new Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: process.env.securenow || 'securenow-free-'+uuidv4()
   })
-  });
+});
   
   // initialize the SDK and register with the OpenTelemetry API
   // this enables the API to record telemetry

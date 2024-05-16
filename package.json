@@ -1,18 +1,21 @@
 {
     "name": "securenow",
-    "version": "1.0.3",
+    "version": "1.0.7",
     "description": "Plug&Secure for nodejs apps",
     "main": "tracing.js",
     "dependencies": {
-      "@opentelemetry/resources": "^1.0.0",
-      "@opentelemetry/semantic-conventions": "^1.0.0",
-      "@opentelemetry/auto-instrumentations-node": "^0.40.3",
-      "@opentelemetry/exporter-trace-otlp-http": "^0.47.0",
-      "@opentelemetry/sdk-node": "^0.47.0"
+        "@opentelemetry/auto-instrumentations-node": "^0.40.3",
+        "@opentelemetry/exporter-trace-otlp-http": "^0.47.0",
+        "@opentelemetry/instrumentation-express": "^0.38.0",
+        "@opentelemetry/instrumentation-http": "^0.51.1",
+        "@opentelemetry/instrumentation-mongodb": "^0.43.0",
+        "@opentelemetry/resources": "^1.0.0",
+        "@opentelemetry/sdk-node": "^0.47.0",
+        "@opentelemetry/semantic-conventions": "^1.0.0",
+        "uuid": "^9.0.1"
     },
     "scripts": {},
     "keywords": [],
     "author": "",
     "license": "ISC"
-  }
-  
+}
