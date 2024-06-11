@@ -1,6 +1,6 @@
 {
     "name": "securenow",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "Plug&Secure for nodejs apps",
     "main": "tracing.js",
     "dependencies": {

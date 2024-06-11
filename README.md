@@ -14,3 +14,9 @@ set the api key in your environement variable :
 ```bash
 export securenow=<API-KEY>
 ```
+
+if you have a dedicated securenow instance : 
+
+```bash
+export securenow_instance='http://<dedicated_instance>:4318'
+```
