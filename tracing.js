@@ -13,7 +13,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Resource } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 
-const securenow_instance = process.env.securenow_url || 'http://65.108.80.206:4318';
+const securenow_instance = process.env.securenow_instance|| 'http://65.108.80.206:4318';
 const exporterOptions = {
   url: securenow_instance+'/v1/traces'
 }
