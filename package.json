@@ -1,21 +1,44 @@
 {
-    "name": "securenow",
-    "version": "1.0.9",
-    "description": "Plug&Secure for nodejs apps",
-    "main": "tracing.js",
-    "dependencies": {
-        "@opentelemetry/auto-instrumentations-node": "^0.40.3",
-        "@opentelemetry/exporter-trace-otlp-http": "^0.47.0",
-        "@opentelemetry/instrumentation-express": "^0.38.0",
-        "@opentelemetry/instrumentation-http": "^0.51.1",
-        "@opentelemetry/instrumentation-mongodb": "^0.43.0",
-        "@opentelemetry/resources": "^1.0.0",
-        "@opentelemetry/sdk-node": "^0.47.0",
-        "@opentelemetry/semantic-conventions": "^1.0.0",
-        "uuid": "^9.0.1"
-    },
-    "scripts": {},
-    "keywords": [],
-    "author": "",
-    "license": "ISC"
+  "name": "securenow",
+  "version": "3.0.14",
+  "type": "commonjs",
+  "main": "register.js",
+  "exports": {
+    ".": "./register.js",
+    "./register": "./register.js",
+    "./tracing": "./tracing.js",
+    "./register-vite": "./register-vite.js",
+    "./web-vite": {
+      "import": "./web-vite.mjs",
+      "default": "./web-vite.mjs"
+    }
+  },
+  "files": [
+    "register.js",
+    "tracing.js",
+    "register-vite.js",
+    "web-vite.mjs",
+    "README.md"
+  ],
+  "dependencies": {
+    "@opentelemetry/api": "1.7.0",
+    "@opentelemetry/auto-instrumentations-node": "0.47.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.47.0",
+    "@opentelemetry/resources": "1.20.0",
+    "@opentelemetry/sdk-node": "0.47.0",
+    "@opentelemetry/semantic-conventions": "1.20.0",
+    "@opentelemetry/sdk-trace-web": "1.20.0",
+    "@opentelemetry/instrumentation": "0.47.0",
+    "@opentelemetry/instrumentation-document-load": "0.47.0",
+    "@opentelemetry/instrumentation-user-interaction": "0.47.0",
+    "@opentelemetry/instrumentation-fetch": "0.47.0",
+    "@opentelemetry/instrumentation-xml-http-request": "0.47.0",
+    "dotenv": "^17.2.1",
+    "uuid": "^9.0.0"
+  },
+  "overrides": {
+    "@opentelemetry/api": "1.7.0"
+  },
+  "sideEffects": true,
+  "license": "ISC"
 }
