@@ -1,12 +1,39 @@
 {
   "name": "securenow",
-  "version": "3.0.14",
+  "version": "4.0.2",
+  "description": "OpenTelemetry instrumentation for Node.js and Next.js - Send traces to SigNoz or any OTLP backend",
   "type": "commonjs",
   "main": "register.js",
+  "bin": {
+    "securenow": "./cli.js"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js || exit 0"
+  },
+  "keywords": [
+    "opentelemetry",
+    "otel",
+    "tracing",
+    "observability",
+    "apm",
+    "monitoring",
+    "nextjs",
+    "next.js",
+    "signoz",
+    "instrumentation",
+    "telemetry",
+    "distributed-tracing",
+    "node",
+    "express",
+    "fastify",
+    "nestjs"
+  ],
   "exports": {
     ".": "./register.js",
     "./register": "./register.js",
     "./tracing": "./tracing.js",
+    "./nextjs": "./nextjs.js",
+    "./nextjs-webpack-config": "./nextjs-webpack-config.js",
     "./register-vite": "./register-vite.js",
     "./web-vite": {
       "import": "./web-vite.mjs",
@@ -16,25 +43,47 @@
   "files": [
     "register.js",
     "tracing.js",
+    "nextjs.js",
+    "cli.js",
+    "postinstall.js",
     "register-vite.js",
     "web-vite.mjs",
-    "README.md"
+    "examples/",
+    "README.md",
+    "NEXTJS-GUIDE.md",
+    "NEXTJS-QUICKSTART.md",
+    "CUSTOMER-GUIDE.md",
+    "AUTO-SETUP.md",
+    "AUTOMATIC-IP-CAPTURE.md",
+    "REQUEST-BODY-CAPTURE.md",
+    "BODY-CAPTURE-QUICKSTART.md",
+    "REDACTION-EXAMPLES.md"
   ],
   "dependencies": {
     "@opentelemetry/api": "1.7.0",
     "@opentelemetry/auto-instrumentations-node": "0.47.0",
     "@opentelemetry/exporter-trace-otlp-http": "0.47.0",
-    "@opentelemetry/resources": "1.20.0",
-    "@opentelemetry/sdk-node": "0.47.0",
-    "@opentelemetry/semantic-conventions": "1.20.0",
-    "@opentelemetry/sdk-trace-web": "1.20.0",
     "@opentelemetry/instrumentation": "0.47.0",
     "@opentelemetry/instrumentation-document-load": "0.47.0",
-    "@opentelemetry/instrumentation-user-interaction": "0.47.0",
     "@opentelemetry/instrumentation-fetch": "0.47.0",
+    "@opentelemetry/instrumentation-http": "^0.208.0",
+    "@opentelemetry/instrumentation-user-interaction": "0.47.0",
     "@opentelemetry/instrumentation-xml-http-request": "0.47.0",
+    "@opentelemetry/resources": "1.20.0",
+    "@opentelemetry/sdk-node": "0.47.0",
+    "@opentelemetry/sdk-trace-web": "1.20.0",
+    "@opentelemetry/semantic-conventions": "1.20.0",
+    "@vercel/otel": "^1.14.0",
     "dotenv": "^17.2.1",
     "uuid": "^9.0.0"
+  },
+  "peerDependencies": {
+    "next": ">=13.0.0"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
   },
   "overrides": {
     "@opentelemetry/api": "1.7.0"

@@ -37,6 +37,64 @@ const parseHeaders = str => {
   return out;
 };
 
+// Default sensitive fields to redact from request bodies
+const DEFAULT_SENSITIVE_FIELDS = [
+  'password', 'passwd', 'pwd', 'secret', 'token', 'api_key', 'apikey',
+  'access_token', 'auth', 'credentials', 'mysql_pwd', 'stripeToken',
+  'card', 'cardnumber', 'ccv', 'cvc', 'cvv', 'ssn', 'pin',
+];
+
+/**
+ * Redact sensitive fields from an object
+ */
+function redactSensitiveData(obj, sensitiveFields = DEFAULT_SENSITIVE_FIELDS) {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  const redacted = Array.isArray(obj) ? [...obj] : { ...obj };
+  
+  for (const key in redacted) {
+    const lowerKey = key.toLowerCase();
+    
+    if (sensitiveFields.some(field => lowerKey.includes(field.toLowerCase()))) {
+      redacted[key] = '[REDACTED]';
+    } else if (typeof redacted[key] === 'object' && redacted[key] !== null) {
+      redacted[key] = redactSensitiveData(redacted[key], sensitiveFields);
+    }
+  }
+  
+  return redacted;
+}
+
+/**
+ * Redact sensitive data from GraphQL query strings
+ */
+function redactGraphQLQuery(query, sensitiveFields = DEFAULT_SENSITIVE_FIELDS) {
+  if (!query || typeof query !== 'string') return query;
+  
+  let redacted = query;
+  
+  // Redact sensitive fields in GraphQL arguments and variables
+  sensitiveFields.forEach(field => {
+    // Match patterns: field: "value" or field: 'value' or field:"value"
+    const patterns = [
+      new RegExp(`(${field}\\s*:\\s*["'])([^"']+)(["'])`, 'gi'),
+      new RegExp(`(${field}\\s*:\\s*)([^\\s,})\n]+)`, 'gi'),
+    ];
+    
+    patterns.forEach(pattern => {
+      redacted = redacted.replace(pattern, (match, prefix, value, suffix) => {
+        if (suffix) {
+          return `${prefix}[REDACTED]${suffix}`;
+        } else {
+          return `${prefix}[REDACTED]`;
+        }
+      });
+    });
+  });
+  
+  return redacted;
+}
+
 // -------- diagnostics --------
 (() => {
   const L = (env('OTEL_LOG_LEVEL') || '').toLowerCase();
@@ -97,11 +155,103 @@ for (const n of (env('SECURENOW_DISABLE_INSTRUMENTATIONS') || '').split(',').map
   disabledMap[n] = { enabled: false };
 }
 
+// -------- Body Capture Configuration --------
+const captureBody = String(env('SECURENOW_CAPTURE_BODY')) === '1' || String(env('SECURENOW_CAPTURE_BODY')).toLowerCase() === 'true';
+const maxBodySize = parseInt(env('SECURENOW_MAX_BODY_SIZE') || '10240'); // 10KB default
+const customSensitiveFields = (env('SECURENOW_SENSITIVE_FIELDS') || '').split(',').map(s => s.trim()).filter(Boolean);
+const allSensitiveFields = [...DEFAULT_SENSITIVE_FIELDS, ...customSensitiveFields];
+
+// Configure HTTP instrumentation with body capture
+const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
+const httpInstrumentation = new HttpInstrumentation({
+  requestHook: (span, request) => {
+    try {
+      if (captureBody && request.method && ['POST', 'PUT', 'PATCH'].includes(request.method)) {
+        const contentType = request.headers['content-type'] || '';
+        
+        if (contentType.includes('application/json') || 
+            contentType.includes('application/graphql') ||
+            contentType.includes('application/x-www-form-urlencoded')) {
+          
+          let body = '';
+          const chunks = [];
+          let size = 0;
+          
+          request.on('data', (chunk) => {
+            size += chunk.length;
+            if (size <= maxBodySize) {
+              chunks.push(chunk);
+            }
+          });
+          
+          request.on('end', () => {
+            if (size <= maxBodySize && chunks.length > 0) {
+              body = Buffer.concat(chunks).toString('utf8');
+              
+              try {
+                let redacted;
+                
+                if (contentType.includes('application/graphql')) {
+                  // GraphQL: redact query string
+                  redacted = redactGraphQLQuery(body, allSensitiveFields);
+                  span.setAttributes({
+                    'http.request.body': redacted.substring(0, maxBodySize),
+                    'http.request.body.type': 'graphql',
+                    'http.request.body.size': size,
+                  });
+                } else if (contentType.includes('application/json')) {
+                  // JSON: parse and redact object
+                  const parsed = JSON.parse(body);
+                  redacted = redactSensitiveData(parsed, allSensitiveFields);
+                  span.setAttributes({
+                    'http.request.body': JSON.stringify(redacted).substring(0, maxBodySize),
+                    'http.request.body.type': 'json',
+                    'http.request.body.size': size,
+                  });
+                } else if (contentType.includes('application/x-www-form-urlencoded')) {
+                  // Form: parse and redact
+                  const parsed = Object.fromEntries(new URLSearchParams(body));
+                  redacted = redactSensitiveData(parsed, allSensitiveFields);
+                  span.setAttributes({
+                    'http.request.body': JSON.stringify(redacted).substring(0, maxBodySize),
+                    'http.request.body.type': 'form',
+                    'http.request.body.size': size,
+                  });
+                }
+              } catch (e) {
+                // Parse error: capture as-is (truncated)
+                span.setAttribute('http.request.body', body.substring(0, 1000));
+                span.setAttribute('http.request.body.parse_error', true);
+              }
+            } else if (size > maxBodySize) {
+              span.setAttribute('http.request.body', `[TOO LARGE: ${size} bytes]`);
+              span.setAttribute('http.request.body.size', size);
+            }
+          });
+        } else if (contentType.includes('multipart/form-data')) {
+          // Multipart is NOT captured
+          span.setAttribute('http.request.body', '[MULTIPART - NOT CAPTURED]');
+          span.setAttribute('http.request.body.type', 'multipart');
+          span.setAttribute('http.request.body.note', 'File uploads not captured by design');
+        }
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  },
+});
+
 // -------- SDK --------
 const traceExporter = new OTLPTraceExporter({ url: tracesUrl, headers });
 const sdk = new NodeSDK({
   traceExporter,
-  instrumentations: getNodeAutoInstrumentations({ ...disabledMap }),
+  instrumentations: [
+    httpInstrumentation,
+    ...getNodeAutoInstrumentations({ 
+      ...disabledMap,
+      '@opentelemetry/instrumentation-http': { enabled: false }, // We use our custom one above
+    }),
+  ],
   resource: new Resource({
     [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
     [SemanticResourceAttributes.SERVICE_INSTANCE_ID]: serviceInstanceId,
@@ -115,6 +265,9 @@ const sdk = new NodeSDK({
   try {
     await Promise.resolve(sdk.start?.());
     console.log('[securenow] OTel SDK started → %s', tracesUrl);
+    if (captureBody) {
+      console.log('[securenow] 📝 Request body capture: ENABLED (max: %d bytes, redacting %d sensitive fields)', maxBodySize, allSensitiveFields.length);
+    }
     if (String(env('SECURENOW_TEST_SPAN')) === '1') {
       const api = require('@opentelemetry/api');
       const tracer = api.trace.getTracer('securenow-smoke');

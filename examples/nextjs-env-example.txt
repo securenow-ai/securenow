@@ -1,0 +1,31 @@
+# SecureNow Configuration for Next.js
+# Place these in your .env.local file
+
+# Required: Your application identifier
+SECURENOW_APPID=my-nextjs-app
+
+# Optional: Your SigNoz/OpenTelemetry collector endpoint
+# Default: http://46.62.173.237:4318
+SECURENOW_INSTANCE=http://your-signoz-server:4318
+
+# Optional: API Key or authentication headers
+OTEL_EXPORTER_OTLP_HEADERS="x-api-key=your-api-key-here"
+
+# Optional: Don't append UUID to service name (useful for dev)
+# SECURENOW_NO_UUID=1
+
+# Optional: Log level
+# OTEL_LOG_LEVEL=info
+
+# Optional: Disable specific instrumentations (comma-separated)
+# SECURENOW_DISABLE_INSTRUMENTATIONS=fs,dns
+
+# Optional: Create a test span on startup
+# SECURENOW_TEST_SPAN=1
+
+# Next.js will automatically use NODE_ENV
+# NODE_ENV=production
+
+
+
+
