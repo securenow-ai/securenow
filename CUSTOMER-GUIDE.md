@@ -133,7 +133,11 @@ Open your **SigNoz dashboard** and you'll see traces immediately!
 - **Size Limits** - Configurable max body size
 - **GDPR-Friendly** - Built-in sensitive field protection
 
-**Enable:** `SECURENOW_CAPTURE_BODY=1` in `.env.local`
+**Enable in 2 steps:**
+1. Set `SECURENOW_CAPTURE_BODY=1` in `.env.local`
+2. Create `middleware.ts`: `export { middleware } from 'securenow/nextjs-middleware';`
+
+(The installer can create both files for you automatically!)
 
 **Perfect for:**
 - Debugging API issues with exact inputs

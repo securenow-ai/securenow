@@ -1,6 +1,6 @@
 {
   "name": "securenow",
-  "version": "4.0.2",
+  "version": "4.0.6",
   "description": "OpenTelemetry instrumentation for Node.js and Next.js - Send traces to SigNoz or any OTLP backend",
   "type": "commonjs",
   "main": "register.js",
@@ -33,6 +33,9 @@
     "./register": "./register.js",
     "./tracing": "./tracing.js",
     "./nextjs": "./nextjs.js",
+    "./nextjs-auto-capture": "./nextjs-auto-capture.js",
+    "./nextjs-middleware": "./nextjs-middleware.js",
+    "./nextjs-wrapper": "./nextjs-wrapper.js",
     "./nextjs-webpack-config": "./nextjs-webpack-config.js",
     "./register-vite": "./register-vite.js",
     "./web-vite": {
@@ -44,6 +47,9 @@
     "register.js",
     "tracing.js",
     "nextjs.js",
+    "nextjs-auto-capture.js",
+    "nextjs-middleware.js",
+    "nextjs-wrapper.js",
     "cli.js",
     "postinstall.js",
     "register-vite.js",
@@ -57,7 +63,16 @@
     "AUTOMATIC-IP-CAPTURE.md",
     "REQUEST-BODY-CAPTURE.md",
     "BODY-CAPTURE-QUICKSTART.md",
-    "REDACTION-EXAMPLES.md"
+    "REDACTION-EXAMPLES.md",
+    "NEXTJS-BODY-CAPTURE.md",
+    "NEXTJS-BODY-CAPTURE-COMPARISON.md",
+    "NEXTJS-WRAPPER-APPROACH.md",
+    "QUICKSTART-BODY-CAPTURE.md",
+    "AUTO-BODY-CAPTURE.md",
+    "EASIEST-SETUP.md",
+    "SOLUTION-SUMMARY.md",
+    "BODY-CAPTURE-FIX.md",
+    "FINAL-SOLUTION.md"
   ],
   "dependencies": {
     "@opentelemetry/api": "1.7.0",

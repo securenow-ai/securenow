@@ -80,6 +80,64 @@ export function register() {
  *   SECURENOW_INSTANCE=http://your-signoz-server:4318
  *   OTEL_EXPORTER_OTLP_HEADERS="x-api-key=your-key"
  *   OTEL_LOG_LEVEL=info
+ *   
+ * Optional: Enable request body capture
+ *   SECURENOW_CAPTURE_BODY=1
+ *   (Also create middleware.ts to activate - run: npx securenow init)
+ */
+`;
+  
+  fs.writeFileSync(targetPath, content, 'utf8');
+}
+
+// Create TypeScript middleware file
+function createTsMiddleware(targetPath) {
+  const content = `// SecureNow Middleware - Automatic Request Body Capture
+// This enables capturing JSON, GraphQL, and Form request bodies
+// with automatic sensitive field redaction
+
+export { middleware } from 'securenow/nextjs-middleware';
+
+export const config = {
+  matcher: '/api/:path*',  // Apply to all API routes
+};
+
+/**
+ * Bodies are captured with:
+ * - Automatic redaction of passwords, tokens, cards, etc.
+ * - Size limits (configurable via SECURENOW_MAX_BODY_SIZE)
+ * - JSON, GraphQL, Form data support
+ * 
+ * Configure in .env.local:
+ *   SECURENOW_MAX_BODY_SIZE=20480
+ *   SECURENOW_SENSITIVE_FIELDS=email,phone
+ */
+`;
+  
+  fs.writeFileSync(targetPath, content, 'utf8');
+}
+
+// Create JavaScript middleware file
+function createJsMiddleware(targetPath) {
+  const content = `// SecureNow Middleware - Automatic Request Body Capture
+// This enables capturing JSON, GraphQL, and Form request bodies
+// with automatic sensitive field redaction
+
+export { middleware } from 'securenow/nextjs-middleware';
+
+export const config = {
+  matcher: '/api/:path*',  // Apply to all API routes
+};
+
+/**
+ * Bodies are captured with:
+ * - Automatic redaction of passwords, tokens, cards, etc.
+ * - Size limits (configurable via SECURENOW_MAX_BODY_SIZE)
+ * - JSON, GraphQL, Form data support
+ * 
+ * Configure in .env.local:
+ *   SECURENOW_MAX_BODY_SIZE=20480
+ *   SECURENOW_SENSITIVE_FIELDS=email,phone
  */
 `;
   
@@ -101,6 +159,11 @@ SECURENOW_INSTANCE=http://your-signoz-server:4318
 
 # Optional: Log level (debug|info|warn|error)
 # OTEL_LOG_LEVEL=info
+
+# Optional: Enable request body capture (requires middleware.ts)
+# SECURENOW_CAPTURE_BODY=1
+# SECURENOW_MAX_BODY_SIZE=10240
+# SECURENOW_SENSITIVE_FIELDS=email,phone
 `;
   
   fs.writeFileSync(targetPath, content, 'utf8');
@@ -171,33 +234,65 @@ async function setup() {
       
       console.log(`\n✅ Created ${srcExists ? 'src/' : ''}${fileName}`);
       
-      // Create .env.local if it doesn't exist
-      const envPath = path.join(process.cwd(), '.env.local');
-      if (!fs.existsSync(envPath)) {
-        createEnvTemplate(envPath);
-        console.log('✅ Created .env.local template');
-      }
-      
-      console.log('\n┌─────────────────────────────────────────────────┐');
-      console.log('│  🚀 Next Steps:                                 │');
-      console.log('│                                                 │');
-      console.log('│  1. Edit .env.local and set:                   │');
-      console.log('│     SECURENOW_APPID=your-app-name              │');
-      console.log('│     SECURENOW_INSTANCE=http://signoz:4318      │');
-      console.log('│                                                 │');
-      console.log('│  2. Run your app: npm run dev                  │');
-      console.log('│                                                 │');
-      console.log('│  3. Check SigNoz for traces!                   │');
-      console.log('│                                                 │');
-      console.log('│  📚 Full guide: npm docs securenow              │');
-      console.log('└─────────────────────────────────────────────────┘\n');
+      // Ask about middleware for body capture
+      rl.question('\nWould you like to enable request body capture? (y/N) ', (middlewareAnswer) => {
+        const shouldCreateMiddleware = middlewareAnswer && (middlewareAnswer.toLowerCase() === 'y' || middlewareAnswer.toLowerCase() === 'yes');
+        
+        if (shouldCreateMiddleware) {
+          try {
+            const middlewareName = useTypeScript ? 'middleware.ts' : 'middleware.js';
+            const middlewarePath = srcExists 
+              ? path.join(process.cwd(), 'src', middlewareName)
+              : path.join(process.cwd(), middlewareName);
+            
+            if (useTypeScript) {
+              createTsMiddleware(middlewarePath);
+            } else {
+              createJsMiddleware(middlewarePath);
+            }
+            
+            console.log(`✅ Created ${srcExists ? 'src/' : ''}${middlewareName}`);
+            console.log('   → Captures JSON, GraphQL, Form bodies with auto-redaction');
+          } catch (error) {
+            console.warn(`⚠️  Could not create middleware: ${error.message}`);
+          }
+        }
+        
+        // Create .env.local if it doesn't exist
+        const envPath = path.join(process.cwd(), '.env.local');
+        if (!fs.existsSync(envPath)) {
+          createEnvTemplate(envPath);
+          console.log('✅ Created .env.local template');
+        }
+        
+        console.log('\n┌─────────────────────────────────────────────────┐');
+        console.log('│  🚀 Next Steps:                                 │');
+        console.log('│                                                 │');
+        console.log('│  1. Edit .env.local and set:                   │');
+        console.log('│     SECURENOW_APPID=your-app-name              │');
+        console.log('│     SECURENOW_INSTANCE=http://signoz:4318      │');
+        if (shouldCreateMiddleware) {
+          console.log('│     SECURENOW_CAPTURE_BODY=1                   │');
+        }
+        console.log('│                                                 │');
+        console.log('│  2. Run your app: npm run dev                  │');
+        console.log('│                                                 │');
+        console.log('│  3. Check SigNoz for traces!                   │');
+        console.log('│                                                 │');
+        if (shouldCreateMiddleware) {
+          console.log('│  📝 Body capture enabled with auto-redaction   │');
+        }
+        console.log('│  📚 Full guide: npm docs securenow              │');
+        console.log('└─────────────────────────────────────────────────┘\n');
+        
+        rl.close();
+      });
       
     } catch (error) {
       console.error('\n❌ Failed to create instrumentation file:', error.message);
       console.log('💡 You can create it manually or run: npx securenow init');
+      rl.close();
     }
-    
-    rl.close();
   });
 }
 

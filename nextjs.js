@@ -276,11 +276,18 @@ function registerSecureNow(options = {}) {
         'vercel.region': process.env.VERCEL_REGION || undefined,
       },
       instrumentations: [
-        // Add HTTP instrumentation with request hooks to capture IP, headers, and body
+        // Add HTTP instrumentation with request hooks to capture IP, headers
+        // NOTE: Body capture is DISABLED at this level for Next.js to prevent conflicts
         new HttpInstrumentation({
           requireParentforOutgoingSpans: false,
           requireParentforIncomingSpans: false,
-          requestHook: async (span, request) => {
+          // Ignore request/response bodies to prevent Next.js conflicts
+          ignoreIncomingRequestHook: (request) => {
+            // Never ignore - we want to trace all requests
+            return false;
+          },
+          requestHook: (span, request) => {
+            // SYNCHRONOUS ONLY - no async operations to avoid timing issues
             try {
               // Capture client IP from various headers
               const headers = request.headers || {};
@@ -294,7 +301,7 @@ function registerSecureNow(options = {}) {
                 request.socket?.remoteAddress ||
                 'unknown';
               
-              // Add IP and request metadata to span
+              // Add IP and request metadata to span (synchronously)
               span.setAttributes({
                 'http.client_ip': clientIp,
                 'http.user_agent': headers['user-agent'] || 'unknown',
@@ -319,64 +326,20 @@ function registerSecureNow(options = {}) {
                 span.setAttribute('http.geo.country', headers['cf-ipcountry']);
               }
 
-              // -------- Capture Request Body --------
-              if (captureBody && request.method && ['POST', 'PUT', 'PATCH'].includes(request.method)) {
-                const contentType = headers['content-type'] || '';
-                
-                // Only capture JSON, GraphQL, and form data (not large files)
-                if (contentType.includes('application/json') || 
-                    contentType.includes('application/graphql') ||
-                    contentType.includes('application/x-www-form-urlencoded')) {
-                  
-                  const bodyResult = await captureRequestBody(request, maxBodySize);
-                  
-                  if (bodyResult.captured) {
-                    let redactedBody;
-                    
-                    // Redact based on type
-                    if (bodyResult.type === 'graphql') {
-                      // GraphQL: redact query string
-                      redactedBody = redactGraphQLQuery(bodyResult.body, allSensitiveFields);
-                    } else if (typeof bodyResult.body === 'object') {
-                      // JSON/Form: redact object properties
-                      redactedBody = redactSensitiveData(bodyResult.body, allSensitiveFields);
-                    } else {
-                      // Plain text: basic redaction
-                      redactedBody = bodyResult.body;
-                    }
-                    
-                    span.setAttributes({
-                      'http.request.body': typeof redactedBody === 'string' 
-                        ? redactedBody.substring(0, maxBodySize)
-                        : JSON.stringify(redactedBody).substring(0, maxBodySize),
-                      'http.request.body.type': bodyResult.type,
-                      'http.request.body.size': bodyResult.size,
-                    });
-                  } else {
-                    span.setAttribute('http.request.body.capture_failed', bodyResult.reason || 'unknown');
-                  }
-                } else if (contentType.includes('multipart/form-data')) {
-                  // Multipart is NOT captured at all
-                  span.setAttribute('http.request.body', '[MULTIPART - NOT CAPTURED]');
-                  span.setAttribute('http.request.body.type', 'multipart');
-                  span.setAttribute('http.request.body.note', 'File uploads not captured by design');
-                }
-              }
+              // -------- Request Body NOT captured at HTTP instrumentation level --------
+              // IMPORTANT: Do NOT attempt to read request.body or listen to 'data' events
+              // Next.js manages request streams internally and reading them here causes:
+              // - "Response body object should not be disturbed or locked" errors
+              // - Hanging requests that never complete
+              // - Body data unavailable to Next.js route handlers
+              //
+              // Body capture must be done in Next.js middleware using request.clone()
+              
             } catch (error) {
               // Silently fail to not break the request
-              console.debug('[securenow] Failed to capture request metadata:', error.message);
+              // Do not log in production to avoid noise
             }
-          },
-          responseHook: (span, response) => {
-            try {
-              // Add response metadata
-              if (response.statusCode) {
-                span.setAttribute('http.status_code', response.statusCode);
-              }
-            } catch (error) {
-              console.debug('[securenow] Failed to capture response metadata:', error.message);
-            }
-          },
+          }
         }),
       ],
       instrumentationConfig: {
@@ -402,10 +365,10 @@ function registerSecureNow(options = {}) {
     isRegistered = true;
     console.log('[securenow] ✅ OpenTelemetry started for Next.js → %s', tracesUrl);
     console.log('[securenow] 📊 Auto-capturing: IP, User-Agent, Headers, Geographic data');
+    console.log('[securenow] ⚠️  Body capture DISABLED at HTTP instrumentation level (prevents Next.js conflicts)');
     if (captureBody) {
-      console.log('[securenow] 📝 Request body capture: ENABLED (max: %d bytes, redacting %d sensitive fields)', maxBodySize, allSensitiveFields.length);
-    } else {
-      console.log('[securenow] 📝 Request body capture: DISABLED (set SECURENOW_CAPTURE_BODY=1 to enable)');
+      console.log('[securenow] 💡 SECURENOW_CAPTURE_BODY is set but has no effect in Next.js HTTP instrumentation');
+      console.log('[securenow] 💡 Body capture must be implemented differently for Next.js (coming soon)');
     }
 
     // Optional test span
